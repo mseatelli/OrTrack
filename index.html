@@ -257,6 +257,10 @@
             cursor: pointer;
             border: 2px solid transparent;
             transition: border-color 0.3s ease;
+            background: #f5f5f5;
+            image-rendering: auto;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         .coin-photo img:hover {
@@ -771,6 +775,12 @@
                 <h3>💾 Import/Export</h3>
                 <p style="margin-bottom: 15px; color: var(--text-secondary);">Sauvegardez et restaurez vos données</p>
                 
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
+                    <p style="margin: 0; font-size: 0.85em; color: #856404;">
+                        <strong>📱 Note pour mobile :</strong> Les photos sont compressées à 70% et redimensionnées à 800px max pour optimiser la performance et l'espace de stockage sur smartphone.
+                    </p>
+                </div>
+                
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                     <button class="btn" onclick="exportToJSON()">📄 Exporter JSON</button>
                     <button class="btn" onclick="exportToExcel()">📊 Exporter Excel</button>
@@ -1205,10 +1215,30 @@
             
             const img = new Image();
             img.onload = function() {
-                canvas.width = Math.min(400, img.width);
-                canvas.height = (canvas.width / img.width) * img.height;
+                // Redimensionner pour mobile - max 800px de largeur
+                let maxWidth = 800;
+                let maxHeight = 800;
                 
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                let width = img.width;
+                let height = img.height;
+                
+                // Calcul du ratio pour redimensionner
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                ctx.drawImage(img, 0, 0, width, height);
                 const originalData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
                 if (side === 'recto') {
@@ -1310,17 +1340,17 @@
                 return;
             }
             
-            // Récupérer les photos
+            // Récupérer les photos avec compression optimisée pour mobile
             if (photoCanvasRecto) {
-                coinData.photoRecto = photoCanvasRecto.toDataURL('image/jpeg', 0.8);
+                coinData.photoRecto = photoCanvasRecto.toDataURL('image/jpeg', 0.7);
             } else if (document.getElementById('photoPreviewRecto').style.display !== 'none' && document.getElementById('photoPreviewRecto').src) {
-                coinData.photoRecto = document.getElementById('photoPreviewRecto').src;
+                coinData.photoRecto = compressImage(document.getElementById('photoPreviewRecto').src);
             }
             
             if (photoCanvasVerso) {
-                coinData.photoVerso = photoCanvasVerso.toDataURL('image/jpeg', 0.8);
+                coinData.photoVerso = photoCanvasVerso.toDataURL('image/jpeg', 0.7);
             } else if (document.getElementById('photoPreviewVerso').style.display !== 'none' && document.getElementById('photoPreviewVerso').src) {
-                coinData.photoVerso = document.getElementById('photoPreviewVerso').src;
+                coinData.photoVerso = compressImage(document.getElementById('photoPreviewVerso').src);
             }
             
             // Ajouter au historique des prix
@@ -1347,6 +1377,38 @@
             closeCoinModal();
             
             showNotification(currentEditingCoin ? 'Pièce modifiée avec succès !' : 'Pièce ajoutée avec succès !');
+        }
+
+        // Fonction de compression d'image pour mobile
+        function compressImage(dataUrl) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.src = dataUrl;
+            
+            // Redimensionner à 800px max
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 800;
+            
+            if (width > height) {
+                if (width > maxSize) {
+                    height *= maxSize / width;
+                    width = maxSize;
+                }
+            } else {
+                if (height > maxSize) {
+                    width *= maxSize / height;
+                    height = maxSize;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            return canvas.toDataURL('image/jpeg', 0.7);
         }
 
         function deleteCoin(coinId) {
@@ -1532,11 +1594,11 @@
                     <div class="coin-card" style="display: inline-block; margin: 10px; max-width: 280px; vertical-align: top;">
                         <div class="coin-photos">
                             <div class="coin-photo">
-                                ${coin.photoRecto ? `<img src="${coin.photoRecto}" onclick="viewPhoto('${coin.photoRecto}', '${coin.name} - Recto')">` : '<div class="no-photo">📷 Recto</div>'}
+                                ${coin.photoRecto ? `<img src="${coin.photoRecto}" onclick="viewPhoto(this.src, '${coin.name.replace(/'/g, "\\'")} - Recto')" alt="${coin.name} - Recto">` : '<div class="no-photo">📷 Recto</div>'}
                                 ${coin.photoRecto ? '<div class="photo-label">Recto</div>' : ''}
                             </div>
                             <div class="coin-photo">
-                                ${coin.photoVerso ? `<img src="${coin.photoVerso}" onclick="viewPhoto('${coin.photoVerso}', '${coin.name} - Verso')">` : '<div class="no-photo">📷 Verso</div>'}
+                                ${coin.photoVerso ? `<img src="${coin.photoVerso}" onclick="viewPhoto(this.src, '${coin.name.replace(/'/g, "\\'")} - Verso')" alt="${coin.name} - Verso">` : '<div class="no-photo">📷 Verso</div>'}
                                 ${coin.photoVerso ? '<div class="photo-label">Verso</div>' : ''}
                             </div>
                         </div>
@@ -2293,7 +2355,17 @@
 
         // Sauvegarde
         function saveCoins() {
-            localStorage.setItem('ortrack_coins', JSON.stringify(coins));
+            try {
+                localStorage.setItem('ortrack_coins', JSON.stringify(coins));
+            } catch (e) {
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    showNotification('⚠️ Mémoire saturée ! Réduisez la taille des photos ou supprimez des pièces.', 'error');
+                    console.error('LocalStorage quota exceeded:', e);
+                } else {
+                    console.error('Error saving coins:', e);
+                    showNotification('Erreur lors de la sauvegarde', 'error');
+                }
+            }
         }
 
         function saveSettings() {
