@@ -1434,11 +1434,11 @@
                 <div class="coin-card">
                     <div class="coin-photos">
                         <div class="coin-photo">
-                            ${coin.photoRecto ? `<img src="${coin.photoRecto}" onclick="viewPhoto('${coin.photoRecto}', '${coin.name} - Recto')">` : '<div class="no-photo">📷 Pas de photo recto</div>'}
+                            ${coin.photoRecto ? `<img src="${coin.photoRecto}" onclick="viewPhoto(this.src, '${coin.name.replace(/'/g, "\\'")} - Recto')" alt="${coin.name} - Recto">` : '<div class="no-photo">📷 Pas de photo recto</div>'}
                             ${coin.photoRecto ? '<div class="photo-label">Recto</div>' : ''}
                         </div>
                         <div class="coin-photo">
-                            ${coin.photoVerso ? `<img src="${coin.photoVerso}" onclick="viewPhoto('${coin.photoVerso}', '${coin.name} - Verso')">` : '<div class="no-photo">📷 Pas de photo verso</div>'}
+                            ${coin.photoVerso ? `<img src="${coin.photoVerso}" onclick="viewPhoto(this.src, '${coin.name.replace(/'/g, "\\'")} - Verso')" alt="${coin.name} - Verso">` : '<div class="no-photo">📷 Pas de photo verso</div>'}
                             ${coin.photoVerso ? '<div class="photo-label">Verso</div>' : ''}
                         </div>
                     </div>
