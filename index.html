@@ -775,9 +775,10 @@
                 <h3>💾 Import/Export</h3>
                 <p style="margin-bottom: 15px; color: var(--text-secondary);">Sauvegardez et restaurez vos données</p>
                 
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #ffc107;">
-                    <p style="margin: 0; font-size: 0.85em; color: #856404;">
-                        <strong>📱 Note pour mobile :</strong> Les photos sont compressées à 70% et redimensionnées à 800px max pour optimiser la performance et l'espace de stockage sur smartphone.
+                <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #0c5460;">
+                    <p style="margin: 0; font-size: 0.85em; color: #0c5460;">
+                        <strong>📱 Android/PC :</strong> Les photos sont automatiquement optimisées pour smartphone.
+                        Compression à 70% et redimensionnement à 800px max pour de meilleures performances.
                     </p>
                 </div>
                 
@@ -861,7 +862,8 @@
                         <h4 style="margin-bottom: 10px; color: var(--text-primary);">🪙 Recto (Face)</h4>
                         <div class="photo-upload" onclick="document.getElementById('coinPhotoRecto').click()">
                             <p>📷 Cliquez pour ajouter la photo du recto</p>
-                            <input type="file" id="coinPhotoRecto" style="display: none;" accept="image/*" onchange="handlePhotoUpload(event, 'recto')">
+                            <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 5px;">Formats : JPEG, PNG, WebP</p>
+                            <input type="file" id="coinPhotoRecto" style="display: none;" accept="image/jpeg,image/png,image/jpg,image/webp" onchange="handlePhotoUpload(event, 'recto')">
                             <img id="photoPreviewRecto" class="photo-preview" style="display: none;">
                         </div>
                         
@@ -890,7 +892,8 @@
                         <h4 style="margin-bottom: 10px; color: var(--text-primary);">🪙 Verso (Pile)</h4>
                         <div class="photo-upload" onclick="document.getElementById('coinPhotoVerso').click()">
                             <p>📷 Cliquez pour ajouter la photo du verso</p>
-                            <input type="file" id="coinPhotoVerso" style="display: none;" accept="image/*" onchange="handlePhotoUpload(event, 'verso')">
+                            <p style="font-size: 0.8em; color: var(--text-secondary); margin-top: 5px;">Formats : JPEG, PNG, WebP</p>
+                            <input type="file" id="coinPhotoVerso" style="display: none;" accept="image/jpeg,image/png,image/jpg,image/webp" onchange="handlePhotoUpload(event, 'verso')">
                             <img id="photoPreviewVerso" class="photo-preview" style="display: none;">
                         </div>
                         
@@ -1182,21 +1185,107 @@
             currentEditingCoin = null;
         }
 
-        // Gestion des photos
+        // Gestion des photos optimisée pour Samsung/Android
         function handlePhotoUpload(event, side) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                console.log('Aucun fichier sélectionné');
+                return;
+            }
+            
+            console.log('=== DIAGNOSTIC PHOTO ===');
+            console.log('Fichier:', file.name);
+            console.log('Type:', file.type);
+            console.log('Taille:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+            console.log('Navigateur:', navigator.userAgent);
+            
+            const sideCapitalized = side.charAt(0).toUpperCase() + side.slice(1);
+            const uploadDiv = event.target.parentElement;
+            const originalHTML = uploadDiv.innerHTML;
+            
+            // Vérifier le type de fichier
+            if (!file.type.startsWith('image/')) {
+                console.error('Type de fichier invalide:', file.type);
+                showNotification('Veuillez sélectionner une image valide (JPEG, PNG, WebP)', 'error');
+                return;
+            }
+            
+            // Vérifier la taille (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                console.error('Fichier trop volumineux:', file.size);
+                showNotification('Image trop volumineuse (max 10MB). Réduisez la qualité de la photo.', 'error');
+                return;
+            }
+            
+            uploadDiv.innerHTML = '<p>⏳ Chargement de l\'image...</p>';
             
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const sideCapitalized = side.charAt(0).toUpperCase() + side.slice(1);
-                const preview = document.getElementById(`photoPreview${sideCapitalized}`);
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-                
-                initPhotoEditor(e.target.result, side);
+            
+            reader.onloadstart = function() {
+                console.log('Début de lecture du fichier...');
             };
-            reader.readAsDataURL(file);
+            
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total * 100).toFixed(0);
+                    console.log('Progression:', percent + '%');
+                    uploadDiv.innerHTML = `<p>⏳ Chargement ${percent}%...</p>`;
+                }
+            };
+            
+            reader.onload = function(e) {
+                console.log('Image chargée avec succès');
+                console.log('Taille Base64:', (e.target.result.length / 1024).toFixed(2), 'KB');
+                
+                uploadDiv.innerHTML = originalHTML;
+                
+                const preview = document.getElementById(`photoPreview${sideCapitalized}`);
+                
+                // Créer une image temporaire pour vérifier si elle se charge
+                const testImg = new Image();
+                testImg.onload = function() {
+                    console.log('Image validée:', testImg.width, 'x', testImg.height);
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                    preview.style.opacity = '1';
+                    
+                    // Initialiser l'éditeur
+                    setTimeout(() => {
+                        initPhotoEditor(e.target.result, side);
+                    }, 100);
+                    
+                    showNotification('✅ Image chargée avec succès !');
+                };
+                
+                testImg.onerror = function() {
+                    console.error('Erreur lors du chargement de l\'image dans le DOM');
+                    uploadDiv.innerHTML = originalHTML;
+                    showNotification('Erreur: Image corrompue ou format non supporté', 'error');
+                };
+                
+                testImg.src = e.target.result;
+            };
+            
+            reader.onerror = function(error) {
+                console.error('Erreur FileReader:', error);
+                console.error('Code erreur:', reader.error);
+                uploadDiv.innerHTML = originalHTML;
+                showNotification('❌ Erreur lors du chargement: ' + (reader.error ? reader.error.message : 'Inconnue'), 'error');
+            };
+            
+            reader.onabort = function() {
+                console.warn('Lecture du fichier annulée');
+                uploadDiv.innerHTML = originalHTML;
+            };
+            
+            try {
+                console.log('Démarrage de la lecture du fichier...');
+                reader.readAsDataURL(file);
+            } catch (err) {
+                console.error('Exception lors de readAsDataURL:', err);
+                uploadDiv.innerHTML = originalHTML;
+                showNotification('Erreur technique lors du chargement', 'error');
+            }
         }
 
         function initPhotoEditor(imageSrc, side) {
